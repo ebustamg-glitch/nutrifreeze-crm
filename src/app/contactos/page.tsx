@@ -8,15 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Phone, Mail, Globe, MapPin, Trash2, Edit2, MessageCircle,
-  Send, Calendar, ChevronDown, Search, Users
-} from "lucide-react";
-import { nanoid } from "nanoid";
+import { Phone, Mail, Globe, MapPin, Trash2, Edit2, MessageCircle, Send, Search, Users } from "lucide-react";
 
-function nanoidSimple() {
-  return Math.random().toString(36).slice(2, 10);
-}
+function nanoidSimple() { return Math.random().toString(36).slice(2, 10); }
 
 export default function Contactos() {
   const [contactos, setContactos] = useState<Contacto[]>([]);
@@ -27,44 +21,41 @@ export default function Contactos() {
   const [accion, setAccion] = useState<{ contacto: Contacto; tipo: "email" | "whatsapp" | "nota" } | null>(null);
   const [mensajeAccion, setMensajeAccion] = useState("");
 
-  useEffect(() => { setContactos(getContactos()); }, []);
+  useEffect(() => { getContactos().then(setContactos); }, []);
 
-  function refrescar() { setContactos(getContactos()); }
+  async function refrescar() { setContactos(await getContactos()); }
 
   const filtrados = contactos.filter((c) => {
     const texto = filtro.toLowerCase();
-    const matchTexto =
-      !filtro ||
-      c.nombre_negocio.toLowerCase().includes(texto) ||
-      c.alcaldia.toLowerCase().includes(texto) ||
-      (c.telefono ?? "").includes(texto);
+    const matchTexto = !filtro || c.nombre_negocio.toLowerCase().includes(texto) ||
+      c.alcaldia.toLowerCase().includes(texto) || (c.telefono ?? "").includes(texto);
     const matchEtapa = filtroEtapa === "todos" || c.etapa === filtroEtapa;
     const matchSeg = filtroSegmento === "todos" || c.segmento === filtroSegmento;
     return matchTexto && matchEtapa && matchSeg;
   });
 
-  function cambiarEtapa(id: string, etapa: EtapaCRM) {
-    updateContacto(id, { etapa, fecha_ultimo_contacto: new Date().toISOString() });
-    refrescar();
+  async function cambiarEtapa(id: string, etapa: EtapaCRM) {
+    await updateContacto(id, { etapa, fecha_ultimo_contacto: new Date().toISOString() });
+    await refrescar();
   }
 
-  function eliminar(id: string) {
+  async function eliminar(id: string) {
     if (confirm("¿Eliminar este contacto?")) {
-      deleteContacto(id);
-      refrescar();
+      await deleteContacto(id);
+      await refrescar();
     }
   }
 
-  function guardarEdicion() {
+  async function guardarEdicion() {
     if (!editando) return;
-    updateContacto(editando.id, editando);
+    await updateContacto(editando.id, editando);
     setEditando(null);
-    refrescar();
+    await refrescar();
   }
 
-  function registrarAccion() {
+  async function registrarAccion() {
     if (!accion || !mensajeAccion.trim()) return;
-    addActividad({
+    await addActividad({
       id: nanoidSimple(),
       contacto_id: accion.contacto.id,
       tipo: accion.tipo,
@@ -74,17 +65,16 @@ export default function Contactos() {
       ...(accion.tipo === "email" ? { estado_email: "enviado" } : {}),
       ...(accion.tipo === "whatsapp" ? { estado_whatsapp: "enviado" } : {}),
     });
-    updateContacto(accion.contacto.id, {
+    await updateContacto(accion.contacto.id, {
       etapa: accion.contacto.etapa === "nuevo" ? "contactado" : accion.contacto.etapa,
       fecha_ultimo_contacto: new Date().toISOString(),
     });
     setAccion(null);
     setMensajeAccion("");
-    refrescar();
+    await refrescar();
   }
 
-  const etapaStyle = (e: EtapaCRM) =>
-    ETAPAS_CRM.find((et) => et.value === e)?.color ?? "bg-slate-100 text-slate-700";
+  const etapaStyle = (e: EtapaCRM) => ETAPAS_CRM.find((et) => et.value === e)?.color ?? "bg-slate-100 text-slate-700";
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -95,37 +85,23 @@ export default function Contactos() {
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Buscar por nombre, alcaldía, teléfono..."
-            className="pl-9"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-          />
+          <Input placeholder="Buscar por nombre, alcaldía, teléfono..." className="pl-9" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
         </div>
         <Select value={filtroEtapa} onValueChange={(v) => setFiltroEtapa(v ?? "todos")}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Etapa" />
-          </SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Etapa" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas las etapas</SelectItem>
-            {ETAPAS_CRM.map((e) => (
-              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-            ))}
+            {ETAPAS_CRM.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroSegmento} onValueChange={(v) => setFiltroSegmento(v ?? "todos")}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Segmento" />
-          </SelectTrigger>
+          <SelectTrigger className="w-48"><SelectValue placeholder="Segmento" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los segmentos</SelectItem>
-            {SEGMENTOS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.icono} {s.label}</SelectItem>
-            ))}
+            {SEGMENTOS.map((s) => <SelectItem key={s.value} value={s.value}>{s.icono} {s.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -160,52 +136,27 @@ export default function Contactos() {
                       <span className="flex items-center gap-1"><MapPin size={12} /> {c.alcaldia}</span>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-1 shrink-0">
-                    {/* Cambiar etapa */}
                     <Select value={c.etapa} onValueChange={(v) => cambiarEtapa(c.id, v as EtapaCRM)}>
-                      <SelectTrigger className="h-8 text-xs w-36 border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs w-36 border-slate-200"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {ETAPAS_CRM.map((e) => (
-                          <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                        ))}
+                        {ETAPAS_CRM.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
-
                     {c.telefono && (
-                      <Button
-                        size="sm" variant="outline"
-                        className="h-8 w-8 p-0 text-green-600"
-                        title="WhatsApp"
-                        onClick={() => setAccion({ contacto: c, tipo: "whatsapp" })}
-                      >
+                      <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-green-600" title="WhatsApp" onClick={() => setAccion({ contacto: c, tipo: "whatsapp" })}>
                         <MessageCircle size={14} />
                       </Button>
                     )}
                     {c.email && (
-                      <Button
-                        size="sm" variant="outline"
-                        className="h-8 w-8 p-0 text-blue-600"
-                        title="Email"
-                        onClick={() => setAccion({ contacto: c, tipo: "email" })}
-                      >
+                      <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-blue-600" title="Email" onClick={() => setAccion({ contacto: c, tipo: "email" })}>
                         <Send size={14} />
                       </Button>
                     )}
-                    <Button
-                      size="sm" variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setEditando({ ...c })}
-                    >
+                    <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => setEditando({ ...c })}>
                       <Edit2 size={14} />
                     </Button>
-                    <Button
-                      size="sm" variant="outline"
-                      className="h-8 w-8 p-0 text-red-500"
-                      onClick={() => eliminar(c.id)}
-                    >
+                    <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-red-500" onClick={() => eliminar(c.id)}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -216,23 +167,15 @@ export default function Contactos() {
         </div>
       )}
 
-      {/* Modal editar contacto */}
       <Dialog open={!!editando} onOpenChange={() => setEditando(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar contacto</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Editar contacto</DialogTitle></DialogHeader>
           {editando && (
             <div className="space-y-3">
               {(["nombre_negocio", "nombre_contacto", "telefono", "email", "sitio_web", "notas"] as const).map((campo) => (
                 <div key={campo}>
-                  <label className="text-xs font-medium text-slate-600 capitalize block mb-1">
-                    {campo.replace("_", " ")}
-                  </label>
-                  <Input
-                    value={(editando[campo] as string) ?? ""}
-                    onChange={(e) => setEditando({ ...editando, [campo]: e.target.value })}
-                  />
+                  <label className="text-xs font-medium text-slate-600 capitalize block mb-1">{campo.replace("_", " ")}</label>
+                  <Input value={(editando[campo] as string) ?? ""} onChange={(e) => setEditando({ ...editando, [campo]: e.target.value })} />
                 </div>
               ))}
               <div className="flex gap-2 justify-end pt-2">
@@ -244,7 +187,6 @@ export default function Contactos() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal acción email/whatsapp */}
       <Dialog open={!!accion} onOpenChange={() => setAccion(null)}>
         <DialogContent>
           <DialogHeader>
@@ -254,29 +196,21 @@ export default function Contactos() {
           </DialogHeader>
           <div className="space-y-3">
             {accion?.tipo === "whatsapp" && accion.contacto.telefono && (
-              <a
-                href={`https://wa.me/52${accion.contacto.telefono.replace(/\D/g, "")}?text=Hola,%20le%20contactamos%20de%20NutriFreeze`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600"
-              >
+              <a href={`https://wa.me/52${accion.contacto.telefono.replace(/\D/g, "")}?text=Hola,%20le%20contactamos`}
+                target="_blank" rel="noopener noreferrer"
+                className="block w-full text-center py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600">
                 Abrir WhatsApp →
               </a>
             )}
             <div>
               <label className="text-xs font-medium text-slate-600 block mb-1">Notas del mensaje enviado</label>
-              <textarea
-                className="w-full border rounded-lg p-2 text-sm resize-none h-24 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              <textarea className="w-full border rounded-lg p-2 text-sm resize-none h-24 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 placeholder="Escribe el mensaje o notas del contacto..."
-                value={mensajeAccion}
-                onChange={(e) => setMensajeAccion(e.target.value)}
-              />
+                value={mensajeAccion} onChange={(e) => setMensajeAccion(e.target.value)} />
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setAccion(null)}>Cancelar</Button>
-              <Button className="bg-cyan-600 hover:bg-cyan-700" onClick={registrarAccion}>
-                Registrar actividad
-              </Button>
+              <Button className="bg-cyan-600 hover:bg-cyan-700" onClick={registrarAccion}>Registrar actividad</Button>
             </div>
           </div>
         </DialogContent>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getContactos, addActividad, updateContacto, getPlantillasCustom, savePlantillaEmail, savePlantillaWA } from "@/lib/store";
+import { getContactos, addActividad, updateContacto, getCampaignTemplates, saveCampaignTemplate } from "@/lib/store";
 import { Contacto, SEGMENTOS, Segmento } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -184,31 +184,33 @@ export default function Campanas() {
   const [guardadoWA, setGuardadoWA] = useState(false);
 
   useEffect(() => {
-    setContactos(getContactos());
-    const custom = getPlantillasCustom();
-    setAsunto(custom.email["todos"]?.asunto ?? PLANTILLAS_EMAIL["todos"].asunto);
-    setCuerpo(custom.email["todos"]?.cuerpo ?? PLANTILLAS_EMAIL["todos"].cuerpo);
-    setMensajeWA(custom.wa["todos"] ?? PLANTILLAS_WHATSAPP["todos"]);
+    (async () => {
+      setContactos(await getContactos());
+      const custom = await getCampaignTemplates();
+      setAsunto(custom["todos"]?.email?.asunto ?? PLANTILLAS_EMAIL["todos"].asunto);
+      setCuerpo(custom["todos"]?.email?.cuerpo ?? PLANTILLAS_EMAIL["todos"].cuerpo);
+      setMensajeWA(custom["todos"]?.wa?.cuerpo ?? PLANTILLAS_WHATSAPP["todos"]);
+    })();
   }, []);
 
-  function aplicarPlantilla(seg: Segmento | "todos") {
+  async function aplicarPlantilla(seg: Segmento | "todos") {
     setSegmentoFiltro(seg);
     setGuardadoEmail(false);
     setGuardadoWA(false);
-    const custom = getPlantillasCustom();
-    setAsunto(custom.email[seg]?.asunto ?? PLANTILLAS_EMAIL[seg].asunto);
-    setCuerpo(custom.email[seg]?.cuerpo ?? PLANTILLAS_EMAIL[seg].cuerpo);
-    setMensajeWA(custom.wa[seg] ?? PLANTILLAS_WHATSAPP[seg]);
+    const custom = await getCampaignTemplates();
+    setAsunto(custom[seg]?.email?.asunto ?? PLANTILLAS_EMAIL[seg].asunto);
+    setCuerpo(custom[seg]?.email?.cuerpo ?? PLANTILLAS_EMAIL[seg].cuerpo);
+    setMensajeWA(custom[seg]?.wa?.cuerpo ?? PLANTILLAS_WHATSAPP[seg]);
   }
 
-  function guardarEmail() {
-    savePlantillaEmail(segmentoFiltro, asunto, cuerpo);
+  async function guardarEmail() {
+    await saveCampaignTemplate(segmentoFiltro, "email", asunto, cuerpo);
     setGuardadoEmail(true);
     setTimeout(() => setGuardadoEmail(false), 2000);
   }
 
-  function guardarWA() {
-    savePlantillaWA(segmentoFiltro, mensajeWA);
+  async function guardarWA() {
+    await saveCampaignTemplate(segmentoFiltro, "wa", undefined, mensajeWA);
     setGuardadoWA(true);
     setTimeout(() => setGuardadoWA(false), 2000);
   }
@@ -221,8 +223,8 @@ export default function Campanas() {
   const conEmail = destinatarios.filter((c) => c.email);
   const conWhatsApp = destinatarios.filter((c) => c.telefono);
 
-  function registrarEnvioEmail(c: Contacto) {
-    addActividad({
+  async function registrarEnvioEmail(c: Contacto) {
+    await addActividad({
       id: nanoidSimple(),
       contacto_id: c.id,
       tipo: "email",
@@ -231,19 +233,19 @@ export default function Campanas() {
       estado_email: "enviado",
       usuario: "dueno",
     });
-    updateContacto(c.id, {
+    await updateContacto(c.id, {
       etapa: c.etapa === "nuevo" ? "contactado" : c.etapa,
       fecha_ultimo_contacto: new Date().toISOString(),
     });
     setEnviados((prev) => new Set(prev).add(c.id));
-    setContactos(getContactos());
+    setContactos(await getContactos());
   }
 
-  function abrirWhatsApp(c: Contacto) {
+  async function abrirWhatsApp(c: Contacto) {
     const tel = c.telefono!.replace(/\D/g, "");
     const msg = encodeURIComponent(mensajeWA);
     window.open(`https://wa.me/52${tel}?text=${msg}`, "_blank");
-    addActividad({
+    await addActividad({
       id: nanoidSimple(),
       contacto_id: c.id,
       tipo: "whatsapp",
@@ -252,12 +254,12 @@ export default function Campanas() {
       estado_whatsapp: "enviado",
       usuario: "dueno",
     });
-    updateContacto(c.id, {
+    await updateContacto(c.id, {
       etapa: c.etapa === "nuevo" ? "contactado" : c.etapa,
       fecha_ultimo_contacto: new Date().toISOString(),
     });
     setEnviados((prev) => new Set(prev).add(`wa_${c.id}`));
-    setContactos(getContactos());
+    setContactos(await getContactos());
   }
 
   return (

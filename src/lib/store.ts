@@ -1,112 +1,97 @@
 "use client";
 import { Contacto, Cita, Actividad, EtapaCRM } from "./types";
 
-const CONTACTOS_KEY = "nf_contactos";
-const CITAS_KEY = "nf_citas";
-const ACTIVIDADES_KEY = "nf_actividades";
+// ── Contacts ──────────────────────────────────────────────────────────────────
 
-function getItem<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
+export async function getContactos(): Promise<Contacto[]> {
+  const res = await fetch("/api/contacts");
+  if (!res.ok) return [];
+  return res.json();
 }
 
-function setItem<T>(key: string, value: T) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(value));
+export async function addContactos(nuevos: Contacto[]): Promise<number> {
+  const res = await fetch("/api/contacts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contactos: nuevos }),
+  });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return data.count ?? 0;
 }
 
-export function getContactos(): Contacto[] {
-  return getItem<Contacto[]>(CONTACTOS_KEY, []);
+export async function updateContacto(id: string, cambios: Partial<Contacto>): Promise<void> {
+  await fetch(`/api/contacts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cambios),
+  });
 }
 
-export function saveContactos(contactos: Contacto[]) {
-  setItem(CONTACTOS_KEY, contactos);
+export async function deleteContacto(id: string): Promise<void> {
+  await fetch(`/api/contacts/${id}`, { method: "DELETE" });
 }
 
-export function addContactos(nuevos: Contacto[]) {
-  const existentes = getContactos();
-  const ids = new Set(existentes.map((c) => c.id));
-  const filtrados = nuevos.filter((c) => !ids.has(c.id));
-  saveContactos([...existentes, ...filtrados]);
-  return filtrados.length;
+// ── Activities ────────────────────────────────────────────────────────────────
+
+export async function getActividades(): Promise<Actividad[]> {
+  const res = await fetch("/api/activities");
+  if (!res.ok) return [];
+  return res.json();
 }
 
-export function updateContacto(id: string, cambios: Partial<Contacto>) {
-  const contactos = getContactos();
-  const idx = contactos.findIndex((c) => c.id === id);
-  if (idx === -1) return;
-  contactos[idx] = { ...contactos[idx], ...cambios };
-  saveContactos(contactos);
+export async function addActividad(act: Actividad): Promise<void> {
+  await fetch("/api/activities", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(act),
+  });
 }
 
-export function deleteContacto(id: string) {
-  saveContactos(getContactos().filter((c) => c.id !== id));
+// ── Citas ─────────────────────────────────────────────────────────────────────
+
+export async function getCitas(): Promise<Cita[]> {
+  const res = await fetch("/api/citas");
+  if (!res.ok) return [];
+  return res.json();
 }
 
-export function getCitas(): Cita[] {
-  return getItem<Cita[]>(CITAS_KEY, []);
+export async function saveCita(cita: Cita): Promise<void> {
+  await fetch("/api/citas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cita),
+  });
 }
 
-export function saveCita(cita: Cita) {
-  const citas = getCitas();
-  const idx = citas.findIndex((c) => c.id === cita.id);
-  if (idx === -1) {
-    citas.push(cita);
-  } else {
-    citas[idx] = cita;
-  }
-  setItem(CITAS_KEY, citas);
+export async function deleteCita(id: string): Promise<void> {
+  await fetch(`/api/citas/${id}`, { method: "DELETE" });
 }
 
-export function deleteCita(id: string) {
-  setItem(CITAS_KEY, getCitas().filter((c) => c.id !== id));
+// ── Campaign templates ────────────────────────────────────────────────────────
+
+export async function getCampaignTemplates(): Promise<Record<string, Record<string, { asunto?: string; cuerpo: string }>>> {
+  const res = await fetch("/api/campaign-templates");
+  if (!res.ok) return {};
+  return res.json();
 }
 
-export function getActividades(): Actividad[] {
-  return getItem<Actividad[]>(ACTIVIDADES_KEY, []);
+export async function saveCampaignTemplate(
+  segmento: string,
+  tipo: "email" | "wa",
+  asunto: string | undefined,
+  cuerpo: string
+): Promise<void> {
+  await fetch("/api/campaign-templates", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ segmento, tipo, asunto, cuerpo }),
+  });
 }
 
-export function addActividad(act: Actividad) {
-  const actividades = getActividades();
-  actividades.push(act);
-  setItem(ACTIVIDADES_KEY, actividades);
-}
+// ── Resumen (computed client-side) ───────────────────────────────────────────
 
-export function getActividadesByContacto(contactoId: string): Actividad[] {
-  return getActividades().filter((a) => a.contacto_id === contactoId);
-}
-
-const PLANTILLAS_KEY = "nf_plantillas_custom";
-
-type PlantillaGuardada = {
-  email: Record<string, { asunto: string; cuerpo: string }>;
-  wa: Record<string, string>;
-};
-
-export function getPlantillasCustom(): PlantillaGuardada {
-  return getItem<PlantillaGuardada>(PLANTILLAS_KEY, { email: {}, wa: {} });
-}
-
-export function savePlantillaEmail(segmento: string, asunto: string, cuerpo: string) {
-  const data = getPlantillasCustom();
-  data.email[segmento] = { asunto, cuerpo };
-  setItem(PLANTILLAS_KEY, data);
-}
-
-export function savePlantillaWA(segmento: string, mensaje: string) {
-  const data = getPlantillasCustom();
-  data.wa[segmento] = mensaje;
-  setItem(PLANTILLAS_KEY, data);
-}
-
-export function getResumen() {
-  const contactos = getContactos();
-  const citas = getCitas();
+export function getResumen(contactos: Contacto[], citas: Cita[]) {
   const etapas: Record<EtapaCRM, number> = {
     nuevo: 0, contactado: 0, interesado: 0,
     cita_agendada: 0, visitado: 0, cerrado: 0, descartado: 0,

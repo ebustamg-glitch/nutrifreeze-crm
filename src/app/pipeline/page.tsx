@@ -10,14 +10,14 @@ export default function Pipeline() {
   const [contactos, setContactos] = useState<Contacto[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
 
-  useEffect(() => { setContactos(getContactos()); }, []);
+  useEffect(() => { getContactos().then(setContactos); }, []);
 
   function onDragStart(id: string) { setDragging(id); }
 
-  function onDrop(etapa: EtapaCRM) {
+  async function onDrop(etapa: EtapaCRM) {
     if (!dragging) return;
-    updateContacto(dragging, { etapa, fecha_ultimo_contacto: new Date().toISOString() });
-    setContactos(getContactos());
+    await updateContacto(dragging, { etapa, fecha_ultimo_contacto: new Date().toISOString() });
+    setContactos(await getContactos());
     setDragging(null);
   }
 
@@ -42,7 +42,6 @@ export default function Pipeline() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(etapa.value as EtapaCRM)}
             >
-              {/* Cabecera columna */}
               <div className={`rounded-t-lg px-3 py-2 flex items-center justify-between ${etapa.color}`}>
                 <span className="text-sm font-semibold">{etapa.label}</span>
                 <span className="text-xs font-bold bg-white/60 rounded-full px-2 py-0.5">
@@ -50,7 +49,6 @@ export default function Pipeline() {
                 </span>
               </div>
 
-              {/* Zona de drop */}
               <div className="bg-slate-100 rounded-b-lg min-h-[400px] p-2 space-y-2">
                 {cols.map((c) => (
                   <div

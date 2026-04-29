@@ -56,9 +56,9 @@ export default function BuscarLeads() {
     });
   }
 
-  function importarSeleccionados() {
+  async function importarSeleccionados() {
     const aImportar = todos.filter((c) => seleccionados.has(c.id));
-    const n = addContactos(aImportar);
+    const n = await addContactos(aImportar);
     setImportados(n);
   }
 

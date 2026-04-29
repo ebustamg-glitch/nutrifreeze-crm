@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Users, Kanban, Mail, Calendar, BarChart3, Snowflake, LogOut } from "lucide-react";
+import { Search, Users, Kanban, Mail, Calendar, BarChart3, Snowflake, LogOut, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/lib/auth";
 
@@ -29,7 +29,9 @@ export default function Sidebar({ user }: { user: SessionUser | null }) {
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <Snowflake className="text-cyan-400" size={22} />
-          <span className="font-bold text-lg tracking-tight">NutriFreeze</span>
+          <span className="font-bold text-lg tracking-tight">
+            {user?.company_name ?? "CRM"}
+          </span>
         </div>
         <p className="text-slate-400 text-xs mt-0.5">Panel de ventas CDMX</p>
       </div>
@@ -53,20 +55,19 @@ export default function Sidebar({ user }: { user: SessionUser | null }) {
       <div className="px-4 py-4 border-t border-slate-700 space-y-3">
         {user && (
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white text-xs font-semibold capitalize">{user.username}</p>
-              <p className="text-slate-500 text-xs capitalize">{user.role}</p>
+            <div className="min-w-0">
+              <p className="text-white text-xs font-semibold capitalize truncate">{user.username}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <Building2 size={10} className="text-slate-500 shrink-0" />
+                <p className="text-slate-500 text-xs truncate">{user.company_name}</p>
+              </div>
             </div>
-            <button
-              onClick={logout}
-              className="text-slate-400 hover:text-red-400 transition-colors"
-              title="Cerrar sesión"
-            >
+            <button onClick={logout} className="text-slate-400 hover:text-red-400 transition-colors shrink-0 ml-2" title="Cerrar sesión">
               <LogOut size={16} />
             </button>
           </div>
         )}
-        <p className="text-slate-500 text-xs">v1.0 · Datos DENUE INEGI</p>
+        <p className="text-slate-500 text-xs">v2.0 · Multi-empresa · DENUE</p>
       </div>
     </aside>
   );
