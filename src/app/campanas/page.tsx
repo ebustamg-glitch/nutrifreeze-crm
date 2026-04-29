@@ -224,6 +224,16 @@ export default function Campanas() {
   const conWhatsApp = destinatarios.filter((c) => c.telefono);
 
   async function registrarEnvioEmail(c: Contacto) {
+    const res = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: c.email, subject: asunto, body: cuerpo }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json();
+      alert(`Error al enviar: ${error}`);
+      return;
+    }
     await addActividad({
       id: nanoidSimple(),
       contacto_id: c.id,
