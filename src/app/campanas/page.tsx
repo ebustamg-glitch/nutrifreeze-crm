@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, MessageCircle, Send, CheckCircle, Filter, Save } from "lucide-react";
+import { Mail, MessageCircle, Send, CheckCircle, Filter, Save, Paperclip, X, Upload } from "lucide-react";
 
 const PLANTILLAS_EMAIL: Record<Segmento | "todos", { asunto: string; cuerpo: string }> = {
   todos: {
@@ -182,6 +182,8 @@ export default function Campanas() {
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
   const [guardadoEmail, setGuardadoEmail] = useState(false);
   const [guardadoWA, setGuardadoWA] = useState(false);
+  const [adjuntos, setAdjuntos] = useState<{ url: string; name: string; size: number }[]>([]);
+  const [subiendo, setSubiendo] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -209,6 +211,30 @@ export default function Campanas() {
     setTimeout(() => setGuardadoEmail(false), 2000);
   }
 
+  async function subirArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendo(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setSubiendo(false);
+    if (!res.ok) { alert("Error al subir archivo"); return; }
+    const data = await res.json();
+    setAdjuntos((prev) => [...prev, { url: data.url, name: data.name, size: data.size }]);
+    e.target.value = "";
+  }
+
+  function quitarAdjunto(url: string) {
+    setAdjuntos((prev) => prev.filter((a) => a.url !== url));
+  }
+
+  function formatBytes(b: number) {
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   async function guardarWA() {
     await saveCampaignTemplate(segmentoFiltro, "wa", undefined, mensajeWA);
     setGuardadoWA(true);
@@ -227,7 +253,7 @@ export default function Campanas() {
     const res = await fetch("/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: c.email, subject: asunto, body: cuerpo }),
+      body: JSON.stringify({ to: c.email, subject: asunto, body: cuerpo, attachments: adjuntos }),
     });
     if (!res.ok) {
       const { error } = await res.json();
@@ -253,7 +279,10 @@ export default function Campanas() {
 
   async function abrirWhatsApp(c: Contacto) {
     const tel = c.telefono!.replace(/\D/g, "");
-    const msg = encodeURIComponent(mensajeWA);
+    const linksAdjuntos = adjuntos.length
+      ? "\n\n📎 Archivos adjuntos:\n" + adjuntos.map((a) => `• ${a.name}: ${a.url}`).join("\n")
+      : "";
+    const msg = encodeURIComponent(mensajeWA + linksAdjuntos);
     window.open(`https://wa.me/52${tel}?text=${msg}`, "_blank");
     await addActividad({
       id: nanoidSimple(),
@@ -346,14 +375,36 @@ export default function Campanas() {
                     onChange={(e) => setCuerpo(e.target.value)}
                   />
                 </div>
-                <Button
-                  size="sm"
-                  onClick={guardarEmail}
-                  className={guardadoEmail ? "bg-green-600 hover:bg-green-600" : "bg-slate-700 hover:bg-slate-800"}
-                >
-                  <Save size={14} className="mr-1.5" />
-                  {guardadoEmail ? "¡Guardado!" : "Guardar plantilla"}
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={guardarEmail}
+                    className={guardadoEmail ? "bg-green-600 hover:bg-green-600" : "bg-slate-700 hover:bg-slate-800"}
+                  >
+                    <Save size={14} className="mr-1.5" />
+                    {guardadoEmail ? "¡Guardado!" : "Guardar plantilla"}
+                  </Button>
+                  <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${subiendo ? "bg-slate-200 text-slate-400" : "bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200"}`}>
+                    <Upload size={13} />
+                    {subiendo ? "Subiendo..." : "Adjuntar archivo"}
+                    <input type="file" className="hidden" onChange={subirArchivo} disabled={subiendo}
+                      accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.mov" />
+                  </label>
+                </div>
+                {adjuntos.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium text-slate-600 flex items-center gap-1"><Paperclip size={12} /> Adjuntos ({adjuntos.length})</p>
+                    {adjuntos.map((a) => (
+                      <div key={a.url} className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1 text-xs">
+                        <span className="truncate text-slate-700 max-w-[200px]">{a.name}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-slate-400">{formatBytes(a.size)}</span>
+                          <button onClick={() => quitarAdjunto(a.url)} className="text-red-400 hover:text-red-600"><X size={13} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

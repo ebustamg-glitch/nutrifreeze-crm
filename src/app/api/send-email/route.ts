@@ -17,9 +17,12 @@ export async function POST(req: NextRequest) {
   const user = token ? await verifyToken(token) : null;
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { to, subject, body } = await req.json();
+  const { to, subject, body, attachments } = await req.json();
   if (!to || !subject || !body)
     return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
+
+  // attachments: [{ url: string, name: string }]
+  const attachList: { url: string; name: string }[] = Array.isArray(attachments) ? attachments : [];
 
   const config = COMPANY_CONFIG[user.company_id];
   if (!config)
@@ -27,11 +30,19 @@ export async function POST(req: NextRequest) {
 
   try {
     if (config.method === "resend") {
+      // Descargar adjuntos y convertir a base64 para Resend
+      const resendAttachments = await Promise.all(
+        attachList.map(async (a) => {
+          const buf = await fetch(a.url).then((r) => r.arrayBuffer());
+          return { filename: a.name, content: Buffer.from(buf).toString("base64") };
+        })
+      );
       await resend.emails.send({
         from: `${user.company_name} <${config.from}>`,
         to,
         subject,
         text: body,
+        attachments: resendAttachments.length ? resendAttachments : undefined,
       });
     } else {
       const transporter = nodemailer.createTransport({
@@ -43,11 +54,16 @@ export async function POST(req: NextRequest) {
           pass: process.env.NUTRI_SMTP_PASS,
         },
       });
+      const nodemailerAttachments = attachList.map((a) => ({
+        filename: a.name,
+        path: a.url,
+      }));
       await transporter.sendMail({
         from: `${user.company_name} <${config.from}>`,
         to,
         subject,
         text: body,
+        attachments: nodemailerAttachments.length ? nodemailerAttachments : undefined,
       });
     }
 
