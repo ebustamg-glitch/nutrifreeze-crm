@@ -90,15 +90,16 @@ export async function GET(req: NextRequest) {
     });
 
     if (!res.ok) {
-      return NextResponse.json(generarDemoData(alcaldia, actividad, pagina), {
-        headers: { "X-Demo-Mode": "true" },
-      });
+      return NextResponse.json(
+        { error: `DENUE respondió con error ${res.status}. Intenta con otra alcaldía o giro.` },
+        { status: 502 }
+      );
     }
 
     const data = await res.json();
-    if (!Array.isArray(data)) {
-      return NextResponse.json(generarDemoData(alcaldia, actividad, pagina), {
-        headers: { "X-Demo-Mode": "true" },
+    if (!Array.isArray(data) || data.length === 0) {
+      return NextResponse.json([], {
+        headers: { "X-Total-Count": "0" },
       });
     }
 
@@ -106,9 +107,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data, {
       headers: { "X-Total-Count": String(data.length) },
     });
-  } catch {
-    return NextResponse.json(generarDemoData(alcaldia, actividad, pagina), {
-      headers: { "X-Demo-Mode": "true" },
-    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error de conexión con DENUE";
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 }
