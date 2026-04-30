@@ -115,8 +115,16 @@ export async function POST(req: NextRequest) {
     RETURNING id
   `;
 
+  const bio = await sql`
+    INSERT INTO companies (name, slug, email)
+    VALUES ('Biorofila', 'biorofila', 'biorofila@gmail.com')
+    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id
+  `;
+
   const nfId = nf[0].id;
   const ebgId = ebg[0].id;
+  const bioId = bio[0].id;
 
   // Seed users with hashed passwords
   const passwords = {
@@ -124,6 +132,8 @@ export async function POST(req: NextRequest) {
     nf_vendedor: await bcrypt.hash("vendedor2026*", 10),
     ebg_admin: await bcrypt.hash("adminebg1953", 10),
     ebg_vendedor: await bcrypt.hash("vendedorebg2026*", 10),
+    bio_admin: await bcrypt.hash("bioadmin2026*", 10),
+    bio_vendedor: await bcrypt.hash("biovendedor2026*", 10),
   };
 
   await sql`
@@ -146,6 +156,16 @@ export async function POST(req: NextRequest) {
     VALUES ('vendedor', ${passwords.ebg_vendedor}, 'vendedor', ${ebgId})
     ON CONFLICT (username, company_id) DO UPDATE SET password_hash = EXCLUDED.password_hash
   `;
+  await sql`
+    INSERT INTO users (username, password_hash, role, company_id)
+    VALUES ('admin', ${passwords.bio_admin}, 'admin', ${bioId})
+    ON CONFLICT (username, company_id) DO UPDATE SET password_hash = EXCLUDED.password_hash
+  `;
+  await sql`
+    INSERT INTO users (username, password_hash, role, company_id)
+    VALUES ('vendedor', ${passwords.bio_vendedor}, 'vendedor', ${bioId})
+    ON CONFLICT (username, company_id) DO UPDATE SET password_hash = EXCLUDED.password_hash
+  `;
 
-  return NextResponse.json({ ok: true, companies: { nutrifreeze: nfId, agenzia_ebg: ebgId } });
+  return NextResponse.json({ ok: true, companies: { nutrifreeze: nfId, agenzia_ebg: ebgId, biorofila: bioId } });
 }
